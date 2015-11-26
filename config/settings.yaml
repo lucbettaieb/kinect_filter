@@ -1,0 +1,3 @@
+# kinect noise filtering parameters
+
+pointcloud_topic: /kinect/depth/points
