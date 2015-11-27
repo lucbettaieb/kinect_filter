@@ -28,8 +28,7 @@ Characterizer::~Characterizer()
 
 void Characterizer::kinectCB(const sensor_msgs::PointCloud2ConstPtr& cloud)
 {
-  // TODO(lucbettaieb): May need to add in guard boolean here so only one 'snapshot'
-  // is processed at a time.
+  // Snapshot boolean guard
   if (!g_processing)
   {
     g_got_pcl = true;
@@ -45,11 +44,41 @@ float Characterizer::getFurthestX(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
   for (size_t i = 0; i < cloud->points.size(); i++)
   {
     Vector3f xyz = cloud->points[i].getVector3fMap();
-    if (xyz(3) > furthest_x)
-      furthest_x = xyz(3);
-
+    if (xyz(0) > furthest_x)
+      furthest_x = xyz(0);
   }
 
+  return furthest_x;
+}
+
+std::vector<pcl::PointXYZ> Characterizer::getOffsetVec(float offset, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+{
+  std::vector<pcl::PointXYZ> point_vec;
+
+  for (size_t i = 0; i < cloud->points.size(); i++)
+  {
+    Vector3f xyz = cloud->points[i].getVector3fMap();
+    pcl::PointXYZ p(xyz(0) - offset, xyz(1), xyz(2));
+
+    point_vec.push_back(p);
+  }
+
+  return point_vec;
+}
+
+std::vector<float> Characterizer::getErrorVec(std::vector<pcl::PointXYZ> points)
+{
+  // This helper function assumes that you have already offset or transformed
+  // all of the points
+  std::vector<float> err_vec;
+
+  for (size_t i = 0; i < points.size(); i++)
+  {
+    Vector3f xyz = points[i].getVector3fMap();
+    err_vec.push_back(xyz(0));
+  }
+
+  return err_vec;
 }
 
 int main(int argc, char **argv)

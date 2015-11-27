@@ -28,8 +28,8 @@ public:
   void kinectCB(const sensor_msgs::PointCloud2ConstPtr& cloud);
   void characterizeNoise();
   
-  void transformToWall();
-  float getError(pcl::PointXYZRGB point);
+  std::vector<pcl::PointXYZ> getOffsetVec(float offset, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+  std::vector<float> getErrorVec(std::vector<pcl::PointXYZ> points);
   float getFurthestX(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
 private:
