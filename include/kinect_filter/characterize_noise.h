@@ -16,6 +16,8 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/ros/conversions.h>
 
+typedef Eigen::Matrix<float, 3, 1> Vector3f;
+
 class Characterizer {
 
 public:
@@ -27,14 +29,14 @@ public:
   void characterizeNoise();
   
   void transformToWall();
-  double getError(pcl::PointXYZRGB point);
-
+  float getError(pcl::PointXYZRGB point);
+  float getFurthestX(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
 private:
   ros::NodeHandle nh_;
 
   ros::Subscriber pcl_sub_;
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclKinect_clr_ptr_;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr pclKinect_clr_ptr_;
 
 };
 

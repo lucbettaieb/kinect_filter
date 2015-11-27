@@ -37,6 +37,21 @@ void Characterizer::kinectCB(const sensor_msgs::PointCloud2ConstPtr& cloud)
   }
 }
 
+float Characterizer::getFurthestX(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+{
+  // Don't care about any kind of pointID, just return the furthext X.
+  float furthest_x = -1.0;
+
+  for (size_t i = 0; i < cloud->points.size(); i++)
+  {
+    Vector3f xyz = cloud->points[i].getVector3fMap();
+    if (xyz(3) > furthest_x)
+      furthest_x = xyz(3);
+
+  }
+
+}
+
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "character");
@@ -55,10 +70,25 @@ int main(int argc, char **argv)
       // Begin processing!
       g_processing = true;
 
-      // Transform the points into a frame that is averaged around the 
-      // central plane of the points. TODO(jonathankoss): Does this make sense
+      // Transform the points into a frame that is based at the 
+      // lowest plane of the points. TODO(jonathankoss): Does this make sense
       // could also transform the points to the fixed frame of the flat surface
       // that we are viewing
+
+      // Going to assume that the setup is like this:
+      //              /-->  [--------wall--------]
+      // [o kinect o] --->  [--------wall--------]
+      //              \-->  [--------wall--------]
+
+      // OK, so we now have a pcl_Kinect_clr_ptr full of points to deal with.
+      // Furthest X point away will be where we transform the points to.
+
+      // Everything is in relation to the kinect_frame
+
+      // ! Instead of doing a literal transform we could just subtract that X from all
+      // of the points to find the 'error'.
+
+
     }
 
   ros::spinOnce();
