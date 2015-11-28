@@ -11,14 +11,24 @@
 
 #include <sensor_msgs/PointCloud2.h>
  
+
+
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 #include <pcl_ros/point_cloud.h>
-#include <pcl/ros/conversions.h>
+#include <pcl/conversions.h>
+
+struct Bin
+{
+	float r_min;
+	float r_max;
+
+	uint quantity;
+};
 
 // 3x1 column vector of floats
 typedef Eigen::Matrix<float, 3, 1> Vector3f;
-typedef std::vector<std::vector<float>> Vector2df;
+typedef std::vector<Bin> Histogram;
 
 class Characterizer {
 
@@ -34,13 +44,16 @@ public:
   std::vector<float> getErrorVec(std::vector<pcl::PointXYZ> points);
   float getFurthestX(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
-  Vector2df createHistogram(std::vector<float> err_vec);
+  Histogram createHistogram(std::vector<float> errs);
 
 private:
   ros::NodeHandle nh_;
 
   ros::Subscriber pcl_sub_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr pclKinect_clr_ptr_;
+
+
+
 
 };
 

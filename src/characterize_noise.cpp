@@ -9,6 +9,7 @@
 #include <kinect_filter/characterize_noise.h>
 #include <ros/ros.h>
 #include <string>
+#include <cmath>
 
 std::string g_pcl_topic;
 
@@ -80,6 +81,61 @@ std::vector<float> Characterizer::getErrorVec(std::vector<pcl::PointXYZ> points)
 
   return err_vec;
 }
+
+Histogram createHistogram(std::vector<float> errs)
+{
+  std::vector<float>::const_iterator max, min;
+  float max_f, min_f;
+  uint errs_size = errs.size();
+
+  max = std::max_element(errs.begin(), errs.end());
+  max_f = static_cast<float>(*max);
+
+  min = std::min_element(errs.begin(), errs.end());
+  min_f = static_cast<float>(*min);
+
+  float ds_bin_count = 1 + std::log2f(errs_size);
+  float ds_bin_width = (max_f - min_f) / ds_bin_count;
+
+  float sum_errs = 0;
+
+  for (size_t i = 0; i < errs_size; i++)
+    sum_errs += errs.at(i);
+
+  float bin_width = sum_errs / errs_size;
+
+  Histogram h;
+
+  float range_iter = min_f;
+  // Set up bins
+  for (size_t i = 0; i < ds_bin_count; i++)
+  {
+    Bin b;
+    b.r_min = range_iter;
+    b.r_max = range_iter + bin_width;
+    b.quantity = 0;
+
+    if(!(b.r_max > max_f)) // if we have not exceeded expectations
+    { // Testting should be done here, not sure if this is needed
+      h.push_back(b);
+    }
+  }
+
+  // Populate bins very inefficiently
+  for (size_t i = 0; i < ds_bin_count; i++)  // iterate over bins
+  {
+    for (size_t j = 0; j < errs_size; j++)  // for each bin iterate over data
+    {
+      if (errs.at(j) >= h.at(i).r_min && errs.at(j) < h.at(i).r_max)
+      {
+        h.at(i).quantity++; 
+      }
+    }
+  }
+
+  return h;
+}
+
 
 int main(int argc, char **argv)
 {
