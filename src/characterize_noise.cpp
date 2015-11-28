@@ -82,6 +82,8 @@ std::vector<float> Characterizer::getErrorVec(std::vector<pcl::PointXYZ> points)
   return err_vec;
 }
 
+// http://graphpad.com/support/faq/prisms-algorithm-for-determining-the-automatic-bin-width-when-creating-a-frequency-distribution/
+
 Histogram createHistogram(std::vector<float> errs)
 {
   std::vector<float>::const_iterator max, min;
