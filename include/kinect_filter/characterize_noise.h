@@ -16,7 +16,9 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/ros/conversions.h>
 
+// 3x1 column vector of floats
 typedef Eigen::Matrix<float, 3, 1> Vector3f;
+typedef std::vector<std::vector<float>> Vector2df;
 
 class Characterizer {
 
@@ -31,6 +33,8 @@ public:
   std::vector<pcl::PointXYZ> getOffsetVec(float offset, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
   std::vector<float> getErrorVec(std::vector<pcl::PointXYZ> points);
   float getFurthestX(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+
+  Vector2df createHistogram(std::vector<float> err_vec);
 
 private:
   ros::NodeHandle nh_;

@@ -117,7 +117,7 @@ int main(int argc, char **argv)
       // ! Instead of doing a literal transform we could just subtract that X from all
       // of the points to find the 'error'.
 
-
+      //http://www.gnu.org/software/gsl/manual/html_node/Histograms.html
     }
 
   ros::spinOnce();
