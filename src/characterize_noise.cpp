@@ -16,7 +16,7 @@ std::string g_pcl_topic;
 bool g_got_pcl = false;
 bool g_processing = false;
 
-Characterizer::Characterizer(ros::NodeHandle nh)
+Characterizer::Characterizer(ros::NodeHandle nh) : pclKinect_clr_ptr_(new pcl::PointCloud<pcl::PointXYZ>)
 {
   nh_ = nh;
 
@@ -27,17 +27,27 @@ Characterizer::~Characterizer()
 {
 }
 
+pcl::PointCloud<pcl::PointXYZ>::Ptr Characterizer::getCloud()
+{
+  return pclKinect_clr_ptr_;
+}
+
 void Characterizer::kinectCB(const sensor_msgs::PointCloud2ConstPtr& cloud)
 {
   // Snapshot boolean guard
   if (!g_processing)
   {
     g_got_pcl = true;
+    std::cout << "about to try to populate pclKinect_clr_ptr_" << std::endl;
+    
     pcl::fromROSMsg(*cloud, *pclKinect_clr_ptr_);
+
+    std::vector<int> index(100);
+    pcl::removeNaNFromPointCloud(*pclKinect_clr_ptr_, *pclKinect_clr_ptr_, index);
   }
 }
 
-float Characterizer::getFurthestX(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+float Characterizer::getFurthest(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
 {
   // Don't care about any kind of pointID, just return the furthext X.
   float furthest_x = -1.0;
@@ -45,8 +55,8 @@ float Characterizer::getFurthestX(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
   for (size_t i = 0; i < cloud->points.size(); i++)
   {
     Vector3f xyz = cloud->points[i].getVector3fMap();
-    if (xyz(0) > furthest_x)
-      furthest_x = xyz(0);
+    if (xyz(2) > furthest_x)
+      furthest_x = xyz(2);
   }
 
   return furthest_x;
@@ -59,7 +69,7 @@ std::vector<pcl::PointXYZ> Characterizer::getOffsetVec(float offset, pcl::PointC
   for (size_t i = 0; i < cloud->points.size(); i++)
   {
     Vector3f xyz = cloud->points[i].getVector3fMap();
-    pcl::PointXYZ p(xyz(0) - offset, xyz(1), xyz(2));
+    pcl::PointXYZ p(offset - xyz(2), xyz(1), xyz(2));
 
     point_vec.push_back(p);
   }
@@ -76,7 +86,8 @@ std::vector<float> Characterizer::getErrorVec(std::vector<pcl::PointXYZ> points)
   for (size_t i = 0; i < points.size(); i++)
   {
     Vector3f xyz = points[i].getVector3fMap();
-    err_vec.push_back(xyz(0));
+    
+    err_vec.push_back(xyz(2));
   }
 
   return err_vec;
@@ -145,15 +156,22 @@ int main(int argc, char **argv)
   ros::NodeHandle nh;
 
   if (!nh.getParam("kinect_filter/pointcloud_topic", g_pcl_topic))
-    g_pcl_topic = "/kinect/depth/points";
+    g_pcl_topic = "/camera/depth_registered/points";
 
   Characterizer c (nh);
+
+  std::vector<float> errors;
+  std::vector<pcl::PointXYZ> offsets;
+  float far_z;
+  pcl::PointCloud<pcl::PointXYZ>::Ptr p_cloud;
 
   while (ros::ok())
   {
     // Check to see if we got a point cloud...
     if (g_got_pcl)
     {
+      p_cloud = c.getCloud();
+
       // Begin processing!
       g_processing = true;
 
@@ -176,6 +194,28 @@ int main(int argc, char **argv)
       // of the points to find the 'error'.
 
       //http://www.gnu.org/software/gsl/manual/html_node/Histograms.html
+
+      far_z = c.getFurthest(p_cloud);
+      std::cout << "far_z: " << far_z << std::endl;
+
+      offsets = c.getOffsetVec(far_z, p_cloud);
+
+      errors = c.getErrorVec(offsets);
+
+      Histogram h;
+      // for (size_t i = 0; i < errors.size(); i++)
+      // {
+      //   std::cout << errors.at(i) << ", ";
+      // }
+      // std::cout << std::endl;
+
+      h = createHistogram(errors);
+
+      for (size_t i = 0; i < h.size(); i++)
+      {
+        std::cout << "Bin " << i << ": quantity: " << h.at(i).quantity << "(" << h.at(i).r_min << ", " << h.at(i).r_max << ")" << std::endl; 
+      }
+      // give a histogram of distances and mean errors
     }
 
   ros::spinOnce();

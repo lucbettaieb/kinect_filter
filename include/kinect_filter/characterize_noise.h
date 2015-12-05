@@ -17,6 +17,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/conversions.h>
+#include <pcl/filters/filter.h>
 
 struct Bin
 {
@@ -42,9 +43,11 @@ public:
   
   std::vector<pcl::PointXYZ> getOffsetVec(float offset, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
   std::vector<float> getErrorVec(std::vector<pcl::PointXYZ> points);
-  float getFurthestX(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+  float getFurthest(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
 
   Histogram createHistogram(std::vector<float> errs);
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr getCloud();
 
 private:
   ros::NodeHandle nh_;
