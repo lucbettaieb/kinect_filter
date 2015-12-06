@@ -10,8 +10,6 @@
 #define CHARACTERIZE_H
 
 #include <sensor_msgs/PointCloud2.h>
- 
-
 
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
@@ -19,20 +17,24 @@
 #include <pcl/conversions.h>
 #include <pcl/filters/filter.h>
 
+#include <vector>
+
 struct Bin
 {
-	float r_min;
-	float r_max;
+  float r_min;  // the minimum distance that this bin can account error for
+  float r_max;  // the maxiumum distance that this bin can account error for
 
-	uint quantity;
+  float err;  // the average error of points within the distance defined by this bin
+
+  uint quantity;  // how how many points are in the bin
 };
 
 // 3x1 column vector of floats
 typedef Eigen::Matrix<float, 3, 1> Vector3f;
 typedef std::vector<Bin> Histogram;
 
-class Characterizer {
-
+class Characterizer
+{
 public:
   Characterizer(ros::NodeHandle nh);
   ~Characterizer();
@@ -40,24 +42,22 @@ public:
 public:
   void kinectCB(const sensor_msgs::PointCloud2ConstPtr& cloud);
   void characterizeNoise();
-  
   std::vector<pcl::PointXYZ> getOffsetVec(float offset, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
   std::vector<float> getErrorVec(std::vector<pcl::PointXYZ> points);
   float getFurthest(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+  void addToHistogram(std::vector<float> errs, float r_min, float r_max);
+  // Histogram createHistogram(std::vector<float> errs);
 
-  Histogram createHistogram(std::vector<float> errs);
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr getCloud();
 
 private:
   ros::NodeHandle nh_;
 
+  Histogram histogram;
+
   ros::Subscriber pcl_sub_;
   pcl::PointCloud<pcl::PointXYZ>::Ptr pclKinect_clr_ptr_;
-
-
-
-
 };
 
 #endif  // CHARACTERIZE_H

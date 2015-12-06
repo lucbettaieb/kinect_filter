@@ -95,58 +95,100 @@ std::vector<float> Characterizer::getErrorVec(std::vector<pcl::PointXYZ> points)
 
 // http://graphpad.com/support/faq/prisms-algorithm-for-determining-the-automatic-bin-width-when-creating-a-frequency-distribution/
 
-Histogram createHistogram(std::vector<float> errs)
+// Histogram createHistogram(std::vector<float> errs)
+// {
+//   std::vector<float>::const_iterator max, min;
+//   float max_f, min_f;
+//   uint errs_size = errs.size();
+
+//   max = std::max_element(errs.begin(), errs.end());
+//   max_f = static_cast<float>(*max);
+
+//   min = std::min_element(errs.begin(), errs.end());
+//   min_f = static_cast<float>(*min);
+
+//   float ds_bin_count = 1 + std::log2f(errs_size);
+//   float ds_bin_width = (max_f - min_f) / ds_bin_count;
+
+//   float sum_errs = 0;
+
+//   for (size_t i = 0; i < errs_size; i++)
+//     sum_errs += errs.at(i);
+
+//   float bin_width = sum_errs / errs_size;
+
+//   Histogram h;
+
+//   float range_iter = min_f;
+//   // Set up bins
+//   for (size_t i = 0; i < ds_bin_count; i++)
+//   {
+//     Bin b;
+//     b.r_min = range_iter;
+//     b.r_max = range_iter + bin_width;
+//     b.quantity = 0;
+
+//     if(!(b.r_max > max_f)) // if we have not exceeded expectations
+//     { // Testting should be done here, not sure if this is needed
+//       h.push_back(b);
+//     }
+//   }
+
+//   // Populate bins very inefficiently
+//   for (size_t i = 0; i < ds_bin_count; i++)  // iterate over bins
+//   {
+//     for (size_t j = 0; j < errs_size; j++)  // for each bin iterate over data
+//     {
+//       if (errs.at(j) >= h.at(i).r_min && errs.at(j) < h.at(i).r_max)
+//       {
+//         h.at(i).quantity++; 
+//       }
+//     }
+//   }
+
+//   return h;
+// }
+
+void Characterizer::addToHistogram(std::vector<float> errs, float r_min, float r_max)
 {
-  std::vector<float>::const_iterator max, min;
-  float max_f, min_f;
-  uint errs_size = errs.size();
+  // Check to see if an appropriate bin is already in the histogram by seeing if r_mid fits between
+  // any existing bin.
+  bool already_exists_in_histogram = false;
+  float r_mid = (r_max + r_min) / 2;
 
-  max = std::max_element(errs.begin(), errs.end());
-  max_f = static_cast<float>(*max);
+  for (size_t i = 0; i < histogram.size(); i++)
+  {
+    if (r_mid >= histogram.at(i).r_min && r_mid < histogram.at(i).r_max)
+    {
+      already_exists_in_histogram = true;
+      histogram.at(i).quantity += errs.size();
+    }
+  }
 
-  min = std::min_element(errs.begin(), errs.end());
-  min_f = static_cast<float>(*min);
-
-  float ds_bin_count = 1 + std::log2f(errs_size);
-  float ds_bin_width = (max_f - min_f) / ds_bin_count;
-
-  float sum_errs = 0;
-
-  for (size_t i = 0; i < errs_size; i++)
-    sum_errs += errs.at(i);
-
-  float bin_width = sum_errs / errs_size;
-
-  Histogram h;
-
-  float range_iter = min_f;
-  // Set up bins
-  for (size_t i = 0; i < ds_bin_count; i++)
+  // If it doesn't already exist in the histogram, make a new bin and insert it into the correct place.
+  if (!already_exists_in_histogram)
   {
     Bin b;
-    b.r_min = range_iter;
-    b.r_max = range_iter + bin_width;
-    b.quantity = 0;
+    b.r_min = r_min;
+    b.r_max = r_max;
+    b.err = std::accumulate(errs.begin(), errs.end(), 0) / errs.size();
+    b.quantity = errs.size();
 
-    if(!(b.r_max > max_f)) // if we have not exceeded expectations
-    { // Testting should be done here, not sure if this is needed
-      h.push_back(b);
-    }
-  }
+    // Now we have to insert it into the right place
 
-  // Populate bins very inefficiently
-  for (size_t i = 0; i < ds_bin_count; i++)  // iterate over bins
-  {
-    for (size_t j = 0; j < errs_size; j++)  // for each bin iterate over data
+    uint index = 0;
+    std::vector<Bin>::iterator pos;
+    for (std::vector<Bin>::iterator it = histogram.begin(); it != histogram.end(); ++it)
     {
-      if (errs.at(j) >= h.at(i).r_min && errs.at(j) < h.at(i).r_max)
-      {
-        h.at(i).quantity++; 
-      }
+      if (histogram.at(index).r_max < r_mid)
+        pos = it;
+      // TODO(lucbettaieb): Maybe add some error checking in here...
+        index++;
     }
+
+    histogram.insert(pos, b);
   }
 
-  return h;
 }
 
 
@@ -209,7 +251,7 @@ int main(int argc, char **argv)
       // }
       // std::cout << std::endl;
 
-      h = createHistogram(errors);
+      //h = createHistogram(errors);
 
       for (size_t i = 0; i < h.size(); i++)
       {
