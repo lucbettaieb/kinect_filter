@@ -49,6 +49,14 @@ void Characterizer::kinectCB(const sensor_msgs::PointCloud2ConstPtr& cloud)
 
     std::vector<int> indicies;
     pcl::removeNaNFromPointCloud(*pclKinect_clr_ptr_, *pclKinect_clr_ptr_, indicies);
+
+    // Create the filtering object
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+    sor.setInputCloud (pclKinect_clr_ptr_);
+    sor.setMeanK (50);
+    sor.setStddevMulThresh (1.0);
+    sor.filter (*pclKinect_clr_ptr_);
+
   }
 }
 
@@ -89,7 +97,7 @@ std::vector<pcl::PointXYZ> Characterizer::getOffsetVec(float offset, pcl::PointC
   for (size_t i = 0; i < cloud->points.size(); i++)
   {
     Vector3f xyz = cloud->points[i].getVector3fMap();
-    pcl::PointXYZ p(offset - xyz(2), xyz(1), xyz(2));
+    pcl::PointXYZ p(xyz(0), xyz(1), offset - xyz(2));
 
     point_vec.push_back(p);
   }
@@ -114,60 +122,6 @@ std::vector<float> Characterizer::getErrorVec(std::vector<pcl::PointXYZ> points)
 }
 
 // http://graphpad.com/support/faq/prisms-algorithm-for-determining-the-automatic-bin-width-when-creating-a-frequency-distribution/
-
-// Histogram createHistogram(std::vector<float> errs)
-// {
-//   std::vector<float>::const_iterator max, min;
-//   float max_f, min_f;
-//   uint errs_size = errs.size();
-
-//   max = std::max_element(errs.begin(), errs.end());
-//   max_f = static_cast<float>(*max);
-
-//   min = std::min_element(errs.begin(), errs.end());
-//   min_f = static_cast<float>(*min);
-
-//   float ds_bin_count = 1 + std::log2f(errs_size);
-//   float ds_bin_width = (max_f - min_f) / ds_bin_count;
-
-//   float sum_errs = 0;
-
-//   for (size_t i = 0; i < errs_size; i++)
-//     sum_errs += errs.at(i);
-
-//   float bin_width = sum_errs / errs_size;
-
-//   Histogram h;
-
-//   float range_iter = min_f;
-//   // Set up bins
-//   for (size_t i = 0; i < ds_bin_count; i++)
-//   {
-//     Bin b;
-//     b.r_min = range_iter;
-//     b.r_max = range_iter + bin_width;
-//     b.quantity = 0;
-
-//     if(!(b.r_max > max_f)) // if we have not exceeded expectations
-//     { // Testting should be done here, not sure if this is needed
-//       h.push_back(b);
-//     }
-//   }
-
-//   // Populate bins very inefficiently
-//   for (size_t i = 0; i < ds_bin_count; i++)  // iterate over bins
-//   {
-//     for (size_t j = 0; j < errs_size; j++)  // for each bin iterate over data
-//     {
-//       if (errs.at(j) >= h.at(i).r_min && errs.at(j) < h.at(i).r_max)
-//       {
-//         h.at(i).quantity++; 
-//       }
-//     }
-//   }
-
-//   return h;
-// }
 
 void Characterizer::addToHistogram(std::vector<float> errs, float r_min, float r_max)
 {
@@ -274,6 +228,8 @@ int main(int argc, char **argv)
       close_z = c.getClosest(p_cloud);
 
       std::cout << "far_z: " << far_z << " | close_z: " << close_z << std::endl;
+
+      //avg_z = (far_z + close_z)/2;
 
       offsets = c.getOffsetVec(far_z, p_cloud);
       errors = c.getErrorVec(offsets);
