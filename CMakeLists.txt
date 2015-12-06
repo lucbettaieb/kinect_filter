@@ -7,7 +7,7 @@ find_package(actionlib REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(PCL 1.7 REQUIRED)
 
-SET(CMAKE_CXX_FLAGS "-std=c++0x")
+#SET(CMAKE_CXX_FLAGS "-std=c++0x")
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp

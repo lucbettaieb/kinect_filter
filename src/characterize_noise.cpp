@@ -32,6 +32,11 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr Characterizer::getCloud()
   return pclKinect_clr_ptr_;
 }
 
+Histogram Characterizer::getHistogram()
+{
+  return histogram;
+}
+
 void Characterizer::kinectCB(const sensor_msgs::PointCloud2ConstPtr& cloud)
 {
   // Snapshot boolean guard
@@ -42,8 +47,8 @@ void Characterizer::kinectCB(const sensor_msgs::PointCloud2ConstPtr& cloud)
     
     pcl::fromROSMsg(*cloud, *pclKinect_clr_ptr_);
 
-    std::vector<int> index(100);
-    pcl::removeNaNFromPointCloud(*pclKinect_clr_ptr_, *pclKinect_clr_ptr_, index);
+    std::vector<int> indicies;
+    pcl::removeNaNFromPointCloud(*pclKinect_clr_ptr_, *pclKinect_clr_ptr_, indicies);
   }
 }
 
@@ -60,6 +65,21 @@ float Characterizer::getFurthest(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
   }
 
   return furthest_x;
+}
+
+float Characterizer::getClosest(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
+{
+  float closest_z = 9999999;
+
+  for (size_t i = 0; i < cloud->points.size(); i++)
+  {
+    Vector3f xyz = cloud->points[i].getVector3fMap();
+    if (xyz(2) < closest_z)
+      closest_z = xyz(2);
+  }
+
+  return closest_z;
+
 }
 
 std::vector<pcl::PointXYZ> Characterizer::getOffsetVec(float offset, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud)
@@ -156,23 +176,31 @@ void Characterizer::addToHistogram(std::vector<float> errs, float r_min, float r
   bool already_exists_in_histogram = false;
   float r_mid = (r_max + r_min) / 2;
 
+  float accum = 0;
+  for (size_t i = 0; i < errs.size(); i++)
+      accum += errs.at(i);
+
   for (size_t i = 0; i < histogram.size(); i++)
   {
     if (r_mid >= histogram.at(i).r_min && r_mid < histogram.at(i).r_max)
     {
       already_exists_in_histogram = true;
-      histogram.at(i).quantity += errs.size();
+      histogram.at(i).quantity++;
+      histogram.at(i).err = (histogram.at(i).err + accum/errs.size()/histogram.at(i).quantity) - (histogram.at(i).err / histogram.at(i).quantity);
     }
   }
 
   // If it doesn't already exist in the histogram, make a new bin and insert it into the correct place.
   if (!already_exists_in_histogram)
   {
+    std::cout << "are we gonna die?" << std::endl;
     Bin b;
     b.r_min = r_min;
     b.r_max = r_max;
-    b.err = std::accumulate(errs.begin(), errs.end(), 0) / errs.size();
-    b.quantity = errs.size();
+    
+    
+    b.err = accum / errs.size();
+    b.quantity = 1;
 
     // Now we have to insert it into the right place
 
@@ -180,13 +208,16 @@ void Characterizer::addToHistogram(std::vector<float> errs, float r_min, float r
     std::vector<Bin>::iterator pos;
     for (std::vector<Bin>::iterator it = histogram.begin(); it != histogram.end(); ++it)
     {
-      if (histogram.at(index).r_max < r_mid)
+      if (histogram.at(index).r_max < r_mid && histogram.at(index).r_min >= r_mid)
         pos = it;
-      // TODO(lucbettaieb): Maybe add some error checking in here...
-        index++;
+      else
+        pos = histogram.end();
+      
+      index++;
     }
 
     histogram.insert(pos, b);
+    std::cout << "we survived this.." << std::endl;
   }
 
 }
@@ -202,9 +233,11 @@ int main(int argc, char **argv)
 
   Characterizer c (nh);
 
+  Histogram hist;
+
   std::vector<float> errors;
   std::vector<pcl::PointXYZ> offsets;
-  float far_z;
+  float far_z, close_z;
   pcl::PointCloud<pcl::PointXYZ>::Ptr p_cloud;
 
   while (ros::ok())
@@ -213,7 +246,7 @@ int main(int argc, char **argv)
     if (g_got_pcl)
     {
       p_cloud = c.getCloud();
-
+      
       // Begin processing!
       g_processing = true;
 
@@ -238,25 +271,23 @@ int main(int argc, char **argv)
       //http://www.gnu.org/software/gsl/manual/html_node/Histograms.html
 
       far_z = c.getFurthest(p_cloud);
-      std::cout << "far_z: " << far_z << std::endl;
+      close_z = c.getClosest(p_cloud);
+
+      std::cout << "far_z: " << far_z << " | close_z: " << close_z << std::endl;
 
       offsets = c.getOffsetVec(far_z, p_cloud);
-
       errors = c.getErrorVec(offsets);
 
-      Histogram h;
-      // for (size_t i = 0; i < errors.size(); i++)
-      // {
-      //   std::cout << errors.at(i) << ", ";
-      // }
-      // std::cout << std::endl;
+      c.addToHistogram(errors, close_z, far_z);
 
-      //h = createHistogram(errors);
-
-      for (size_t i = 0; i < h.size(); i++)
+      hist = c.getHistogram();
+      for (size_t i = 0; i < hist.size(); i++)
       {
-        std::cout << "Bin " << i << ": quantity: " << h.at(i).quantity << "(" << h.at(i).r_min << ", " << h.at(i).r_max << ")" << std::endl; 
+        std::cout << "Bin " << i << ": quantity: " << hist.at(i).quantity << "| err: " << hist.at(i).err << " (" << hist.at(i).r_min << ", " << hist.at(i).r_max << ")" << std::endl; 
       }
+
+      ros::Duration(1.0).sleep();
+      g_processing = false;
       // give a histogram of distances and mean errors
     }
 
