@@ -55,10 +55,11 @@ public:
   void characterizeNoise();
   std::vector<pcl::PointXYZ> getOffsetVec(float offset, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
   std::vector<float> getErrorVec(std::vector<pcl::PointXYZ> points);
+  float getMeanError(std::vector<pcl::PointXYZ> points);
   float getFurthest(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
   float getClosest(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
   void addToHistogram(std::vector<float> errs, float r_min, float r_max);
-  // Histogram createHistogram(std::vector<float> errs);
+  void createHistogram(std::vector<Bin> error_vector);
 
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr getCloud();

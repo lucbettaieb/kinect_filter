@@ -121,7 +121,24 @@ std::vector<float> Characterizer::getErrorVec(std::vector<pcl::PointXYZ> points)
   return err_vec;
 }
 
+float Characterizer::getMeanError(std::vector<pcl::PointXYZ> points)
+{
+  //Takes the offest vector and finds the mean error
+  float err_mean;
+  float err_sum = 0;
+
+  for (size_t i = 0; i < points.size(); i++)
+  {
+    Vector3f xyz = points[i].getVector3fMap();
+    err_sum += xyz(2);
+  }
+  err_mean = err_sum / points.size();
+
+  return err_mean;
+}
+
 // http://graphpad.com/support/faq/prisms-algorithm-for-determining-the-automatic-bin-width-when-creating-a-frequency-distribution/
+
 
 void Characterizer::addToHistogram(std::vector<float> errs, float r_min, float r_max)
 {
@@ -176,6 +193,60 @@ void Characterizer::addToHistogram(std::vector<float> errs, float r_min, float r
 
 }
 
+void Characterizer::createHistogram(std::vector<Bin> error_vector)
+{
+  uint bin_count;
+  float est_bin_count;
+  float bin_width;
+  float min_dist;
+  float max_dist;
+  
+  est_bin_count = 1 + log2(error_vector.size());
+  bin_count = std::floor(est_bin_count);
+
+  min_dist = 10000;
+  max_dist = -10000;
+
+  for(size_t i = 0; i<error_vector.size(); i++)
+  {
+    if(min_dist > error_vector.at(i).r_min)
+    {
+      min_dist = error_vector.at(i).r_min;
+    }
+
+    if(max_dist < error_vector.at(i).r_max)
+    {
+      max_dist = error_vector.at(i).r_max;
+    }
+
+  }
+
+  bin_width = (max_dist - min_dist)/bin_count;
+
+  int k = 0;
+  while(k < bin_count)
+  {
+    Bin bin;
+    bin.r_min = min_dist + k*bin_width;
+    bin.r_max = min_dist + (k+1)*bin_width;
+    histogram.push_back(bin);
+    k++;
+  }
+
+  for(size_t i = 0; i<error_vector.size(); i++)
+  {
+    for(size_t j = 0; j<bin_count; j++)
+    {
+      if(histogram.at(j).r_min < (error_vector.at(i).r_min + error_vector.at(i).r_max)/2 &&
+         histogram.at(j).r_max > (error_vector.at(i).r_min + error_vector.at(i).r_max)/2)
+      {
+        histogram.at(j).quantity++;
+        histogram.at(j).err = histogram.at(j).err + error_vector.at(i).err/histogram.at(j).quantity - histogram.at(j).err/histogram.at(j).quantity;
+      } 
+    }
+  }
+
+}
 
 int main(int argc, char **argv)
 {
@@ -190,16 +261,21 @@ int main(int argc, char **argv)
   Histogram hist;
 
   std::vector<float> errors;
+  std::vector<Bin> error_vector;
   std::vector<pcl::PointXYZ> offsets;
   float far_z, close_z;
+  float mean_error;
   pcl::PointCloud<pcl::PointXYZ>::Ptr p_cloud;
+  uint number_of_sample_points = 10;
+  uint sample_number = 0;
 
-  while (ros::ok())
+  while (ros::ok() && number_of_sample_points > sample_number)
   {
     // Check to see if we got a point cloud...
     if (g_got_pcl)
     {
       p_cloud = c.getCloud();
+      sample_number++;
       
       // Begin processing!
       g_processing = true;
@@ -232,21 +308,34 @@ int main(int argc, char **argv)
       //avg_z = (far_z + close_z)/2;
 
       offsets = c.getOffsetVec(far_z, p_cloud);
-      errors = c.getErrorVec(offsets);
+      //errors = c.getErrorVec(offsets);
+      mean_error = c.getMeanError(offsets);
 
-      c.addToHistogram(errors, close_z, far_z);
+      std::cout << "mean error; " << mean_error << std::endl;
 
-      hist = c.getHistogram();
-      for (size_t i = 0; i < hist.size(); i++)
-      {
-        std::cout << "Bin " << i << ": quantity: " << hist.at(i).quantity << "| err: " << hist.at(i).err << " (" << hist.at(i).r_min << ", " << hist.at(i).r_max << ")" << std::endl; 
-      }
+      Bin b;
 
-      ros::Duration(1.0).sleep();
+      b.r_min = close_z;
+      b.r_max = far_z;
+      b.err = mean_error;
+
+      error_vector.push_back(b);
+
+      ros::Duration(0.5).sleep();
       g_processing = false;
       // give a histogram of distances and mean errors
     }
 
   ros::spinOnce();
   }
+
+  //c.addToHistogram(errors, close_z, far_z);
+
+      c.createHistogram(error_vector);
+
+      hist = c.getHistogram();
+      for (size_t i = 0; i < hist.size(); i++)
+      {
+        std::cout << "Bin " << i << ": quantity: " << hist.at(i).quantity << "| err: " << hist.at(i).err << " (" << hist.at(i).r_min << ", " << hist.at(i).r_max << ")" << std::endl; 
+      }
 }
