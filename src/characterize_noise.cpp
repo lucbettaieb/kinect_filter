@@ -19,6 +19,7 @@ bool g_processing = false;
 Characterizer::Characterizer(ros::NodeHandle nh) : pclKinect_clr_ptr_(new pcl::PointCloud<pcl::PointXYZ>)
 {
   nh_ = nh;
+  std::cout << "char topic: " << g_pcl_topic << std::endl;
 
   pcl_sub_ = nh_.subscribe(g_pcl_topic, 1, &Characterizer::kinectCB, this);
 }
@@ -201,7 +202,7 @@ void Characterizer::createHistogram(std::vector<Bin> error_vector)
   float min_dist;
   float max_dist;
   
-  est_bin_count = 1 + log2(error_vector.size());
+  est_bin_count = log2(error_vector.size());
   bin_count = std::floor(est_bin_count);
 
   min_dist = 10000;
@@ -253,7 +254,7 @@ int main(int argc, char **argv)
   ros::init(argc, argv, "character");
   ros::NodeHandle nh;
 
-  if (!nh.getParam("kinect_filter/pointcloud_topic", g_pcl_topic))
+  if (!nh.getParam("/characterize_noise/pointcloud_topic", g_pcl_topic))
     g_pcl_topic = "/camera/depth_registered/points";
 
   Characterizer c (nh);
@@ -266,7 +267,7 @@ int main(int argc, char **argv)
   float far_z, close_z;
   float mean_error;
   pcl::PointCloud<pcl::PointXYZ>::Ptr p_cloud;
-  uint number_of_sample_points = 10;
+  uint number_of_sample_points = 16;
   uint sample_number = 0;
 
   while (ros::ok() && number_of_sample_points > sample_number)
@@ -305,9 +306,9 @@ int main(int argc, char **argv)
 
       std::cout << "far_z: " << far_z << " | close_z: " << close_z << std::endl;
 
-      //avg_z = (far_z + close_z)/2;
+      float avg_z = (far_z + close_z)/2;
 
-      offsets = c.getOffsetVec(far_z, p_cloud);
+      offsets = c.getOffsetVec(avg_z, p_cloud);
       //errors = c.getErrorVec(offsets);
       mean_error = c.getMeanError(offsets);
 
@@ -322,6 +323,12 @@ int main(int argc, char **argv)
       error_vector.push_back(b);
 
       ros::Duration(0.5).sleep();
+
+      if(sample_number%4 == 0)
+      {
+        ROS_INFO("Move it, soldier!!!");
+        ros::Duration(5.0).sleep();
+      }
       g_processing = false;
       // give a histogram of distances and mean errors
     }

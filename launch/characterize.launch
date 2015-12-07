@@ -1,0 +1,8 @@
+<launch>
+
+  <node pkg="kinect_filter" type="characterize_noise" name="characterize_noise" output="screen" cwd="node">
+  	<rosparam command="load" file="$(find kinect_filter)/config/settings.yaml" />
+  </node>
+    
+
+</launch>

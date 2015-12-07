@@ -18,6 +18,8 @@ KinectFilter::KinectFilter(ros::NodeHandle &nh) :
 
   got_cloud = false;
   processing = false;
+
+  pc_frame = "";
 }
 
 KinectFilter::~KinectFilter()
@@ -26,6 +28,7 @@ KinectFilter::~KinectFilter()
 
 void KinectFilter::in_cloud_cb(const sensor_msgs::PointCloud2ConstPtr& cloud)
 {
+  pc_frame = cloud->header.frame_id;
   if (!processing)
   {
     pcl::fromROSMsg(*cloud, *p_in_cloud);
@@ -33,11 +36,12 @@ void KinectFilter::in_cloud_cb(const sensor_msgs::PointCloud2ConstPtr& cloud)
   }
 }
 
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr KinectFilter::remove_error(Histogram noise)
+pcl::PointCloud<pcl::PointXYZRGB> KinectFilter::remove_error(Histogram noise)
 {
   // Only remove Z error for now....
+  std::vector<float> avg_distance(noise.size(), 0.0), sum_distance(noise.size(), 0.0), number_distance(noise.size(), 0.0);
 
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr p_out_cloud_ret;
+  pcl::PointCloud<pcl::PointXYZRGB> p_out_cloud_ret;
 
   for (size_t i = 0; i < p_in_cloud->size(); i++)
   {
@@ -51,14 +55,22 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr KinectFilter::remove_error(Histogram nois
       {   
         xyz(2) -= noise.at(j).err;
 
+        sum_distance.at(j) += xyz(2);
+        number_distance.at(j)++;
+
         pcl::PointXYZRGB filtered_p(rgb(0), rgb(1), rgb(2));
         filtered_p.getVector3fMap() = xyz;
 
-        p_out_cloud_ret->points.push_back(filtered_p);
+        p_out_cloud_ret.points.push_back(filtered_p);
 
         break;
       }
     }
+  }
+  for (size_t j = 0; j < noise.size(); j++)
+  {
+    avg_distance.at(j) = sum_distance.at(j)/number_distance.at(j);
+    std::cout << "distance " << j << ": " << avg_distance.at(j) << std::endl;
   }
 
   return p_out_cloud_ret;
@@ -75,7 +87,7 @@ int main(int argc, char **argv)
 
   ros::Publisher pub_out_cloud = nh.advertise<sensor_msgs::PointCloud2>("camera/depth_registered/filtered/points", 1);
 
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr p_out_cloud;
+  pcl::PointCloud<pcl::PointXYZRGB> out_cloud;
 
   std::fstream myfile("/home/luc/indigo/histogram.dat", std::ios_base::in);
   
@@ -102,7 +114,7 @@ int main(int argc, char **argv)
       b.r_max = a;
       hist.push_back(b);
     }
-    
+
     i++;
   }
   sensor_msgs::PointCloud2 ros_view_cloud;
@@ -116,9 +128,12 @@ int main(int argc, char **argv)
   ROS_INFO("about to filter...");
   while(ros::ok)
   {
-    p_out_cloud = kf.remove_error(hist);
+    out_cloud = kf.remove_error(hist);
 
-    pcl::toROSMsg(*p_out_cloud, ros_view_cloud);
+    pcl::toROSMsg(out_cloud, ros_view_cloud);
+
+    ros_view_cloud.header.stamp = ros::Time::now();
+    ros_view_cloud.header.frame_id = kf.getPCFrame();
 
     pub_out_cloud.publish(ros_view_cloud);
 

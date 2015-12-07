@@ -28,11 +28,11 @@ public:
   KinectFilter(ros::NodeHandle &nh);
   ~KinectFilter();
 
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr remove_error(Histogram noise);
-
+  pcl::PointCloud<pcl::PointXYZRGB> remove_error(Histogram noise);
+  std::string getPCFrame(){ return pc_frame; }
 private:
   ros::NodeHandle nh_;
-
+  std::string pc_frame;
   
   ros::Subscriber sub_in_cloud;
 
