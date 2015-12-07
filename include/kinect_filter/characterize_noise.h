@@ -16,7 +16,7 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/conversions.h>
 #include <pcl/filters/filter.h>
- #include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/common/projection_matrix.h>
 #include <pcl/ModelCoefficients.h>
 #include <pcl/filters/extract_indices.h>
@@ -30,6 +30,8 @@
 
 #include <vector>
 
+#include <fstream>
+ 
 struct Bin
 {
   float r_min;  // the minimum distance that this bin can account error for

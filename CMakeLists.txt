@@ -49,3 +49,12 @@ target_link_libraries(characterize_noise
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )
+
+add_executable(kinect_filter src/kinect_filter.cpp)
+
+add_dependencies(kinect_filter ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+target_link_libraries(kinect_filter
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)

@@ -311,7 +311,7 @@ int main(int argc, char **argv)
       //errors = c.getErrorVec(offsets);
       mean_error = c.getMeanError(offsets);
 
-      std::cout << "mean error; " << mean_error << std::endl;
+      std::cout << "mean error: " << mean_error << std::endl;
 
       Bin b;
 
@@ -332,10 +332,16 @@ int main(int argc, char **argv)
   //c.addToHistogram(errors, close_z, far_z);
 
       c.createHistogram(error_vector);
+      std::ofstream output_file;
+      output_file.open("histogram.dat");
+
 
       hist = c.getHistogram();
       for (size_t i = 0; i < hist.size(); i++)
       {
         std::cout << "Bin " << i << ": quantity: " << hist.at(i).quantity << "| err: " << hist.at(i).err << " (" << hist.at(i).r_min << ", " << hist.at(i).r_max << ")" << std::endl; 
+        output_file << hist.at(i).quantity << " " << hist.at(i).err << " " << hist.at(i).r_min << " " << hist.at(i).r_max << std::endl;
       }
+
+      output_file.close();
 }
